@@ -6,7 +6,9 @@ import os
 import sys
 
 # Allow `app` imports
-sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../app')
+ROOT = Path(__file__).resolve().parents[1]   # <repo>/
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from app.database import Base
 from app import models  # ensure models are imported for autogenerate

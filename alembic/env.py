@@ -4,6 +4,7 @@ from sqlalchemy import engine_from_config, pool
 from alembic import context
 import os
 import sys
+from pathlib import Path
 
 # Allow `app` imports
 ROOT = Path(__file__).resolve().parents[1]   # <repo>/

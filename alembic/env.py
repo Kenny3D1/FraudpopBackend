@@ -17,13 +17,9 @@ from app import models  # ensure models are imported for autogenerate
 config = context.config
 
 # Use DATABASE_URL from environment if present
-url = os.getenv("MIGRATIONS_DATABASE_URL") or os.getenv("DATABASE_URL", "")
-if url:
-    if "+asyncpg" in url:
-        # Use psycopg (v3) or psycopg2 if that's what you installed
-        url = url.replace("+asyncpg", "+psycopg")
-        # url = url.replace("+asyncpg", "+psycopg2")  # alternative
-    config.set_main_option("sqlalchemy.url", url)
+db_url = os.getenv("DATABASE_URL")
+if db_url:
+    config.set_main_option("sqlalchemy.url", db_url)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

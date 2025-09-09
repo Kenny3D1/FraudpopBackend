@@ -5,7 +5,8 @@ from ..utils.shopify import verify_shopify_hmac
 from ..utils.idempotency import is_processed, mark_processed
 from ..config import settings
 from ..schemas import QueryInput
-from .vault import query as vault_query
+from starlette.concurrency import run_in_threadpool
+from .vault import query_core
 import json
 
 router = APIRouter(prefix="/webhooks", tags=["shopify"])
@@ -29,7 +30,8 @@ async def orders_create(request: Request, db: Session = Depends(get_db)):
     email = (payload.get("email") or "").strip().lower() if payload.get("email") else None
     join_ids = {"email": email, "device_id": None, "ip": None}
     q = QueryInput(shop_id=shop_domain, ids=join_ids)
-    vault_result = await vault_query(q, db)
+    # inside orders_create
+    vault_result = await run_in_threadpool(query_core, q, db)
 
     # TODO: write back metafield via Shopify Admin API
     from ..utils.logging import logger

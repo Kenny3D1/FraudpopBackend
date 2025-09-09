@@ -44,8 +44,8 @@ def observe(payload: ObserveInput, db: Session = Depends(get_db)):
         db.commit()
     return {"ok": True}
 
-@router.post("/query", response_model=QueryResponse)
-def query(payload: QueryInput, db: Session = Depends(get_db)):
+
+def query_core(payload: QueryInput, db: Session) -> QueryResponse:
     results: dict[str, VaultSignal] = {}
     reasons: list[str] = []
     verdict = "green"
@@ -65,11 +65,17 @@ def query(payload: QueryInput, db: Session = Depends(get_db)):
         id_type = "device" if k == "device_id" else k
         if not val:
             continue
-        h, _ = hash_identifier(id_type, val, payload.shop_id, settings.VAULT_PEPPER, salt=b"")  # deterministic check
-        row = db.execute(select(Observation).where(Observation.id_type==id_type, Observation.id_hash==h)).scalar_one_or_none()
+        h, _ = hash_identifier(id_type, val, payload.shop_id, settings.VAULT_PEPPER, salt=b"")
+        row = db.execute(
+            select(Observation).where(Observation.id_type==id_type, Observation.id_hash==h)
+        ).scalar_one_or_none()
         if row:
             sig = VaultSignal(seen_count=row.seen_count, outcomes=row.outcomes, last_seen=row.last_seen)
             results[id_type] = sig
             update_verdict(sig, id_type)
 
     return QueryResponse(signals=results, vault_verdict=verdict, reasons=list(set(reasons)))
+
+@router.post("/query", response_model=QueryResponse)
+def query(payload: QueryInput, db: Session = Depends(get_db)):
+    return query_core(payload, db)

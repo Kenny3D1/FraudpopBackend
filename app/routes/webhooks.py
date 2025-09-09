@@ -8,7 +8,7 @@ from ..schemas import QueryInput
 from .vault import query as vault_query
 import json
 
-router = APIRouter(prefix="/webhooks/shopify", tags=["shopify"])
+router = APIRouter(prefix="/webhooks", tags=["shopify"])
 Base.metadata.create_all(bind=engine)
 
 @router.post("/orders-create")

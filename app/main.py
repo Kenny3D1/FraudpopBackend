@@ -5,9 +5,9 @@ from .routes.webhooks import router as webhooks_router
 
 app = FastAPI(title="FraudPop Backend + Defender3D Risk Vault")
 
-app.include_router(vault_router)
-app.include_router(capture_router)
-app.include_router(webhooks_router)
+app.include_router(vault_router, prefix="/proxy")
+app.include_router(capture_router, prefix="/proxy")
+app.include_router(webhooks_router, prefix="/proxy")
 
 @app.get("/health")
 def health():

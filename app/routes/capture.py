@@ -6,8 +6,6 @@ from ..models import DeviceCapture
 
 router = APIRouter(prefix="/v1", tags=["capture"])
 
-Base.metadata.create_all(bind=engine)
-
 @router.post("/capture")
 def capture(payload: CaptureInput, db: Session = Depends(get_db)):
     rec = DeviceCapture(

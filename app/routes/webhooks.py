@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request, Depends, HTTPException
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 import json
-import httpx
+import https
 from datetime import timedelta
 
 from ..database import get_db, Base, engine
@@ -53,7 +53,7 @@ async def write_order_risk_metafield(
         "Accept": "application/json",
     }
 
-    async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, read=20.0, write=10.0, connect=10.0)) as client:
+    async with https.AsyncClient(timeout=https.Timeout(10.0, read=20.0, write=10.0, connect=10.0)) as client:
         resp = await client.post(url, json=body, headers=headers)
         if resp.status_code not in (200, 201):
             text = resp.text[:500]

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request, Depends, HTTPException
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 import json
-import https
+import http.client as http_client  # <-- fix: use stdlib HTTPS client
 from datetime import timedelta
 
 from ..database import get_db, Base, engine
@@ -22,21 +22,17 @@ RISK_NAMESPACE = "fraudpop"
 RISK_KEY = "risk"
 
 
-async def write_order_risk_metafield(
+def _write_order_risk_metafield_sync(
     shop_domain: str,
     order_id: int,
     token: str,
     risk_payload: dict,
 ) -> dict:
     """
-    Writes a JSON metafield:
-      namespace: fraudpop
-      key: risk
-      type: json
-      value: {"score": int, "verdict": "green|amber|red", "reasons": [...], "at": "...iso..."}
+    Blocking version that uses stdlib HTTPSConnection.
+    Called via run_in_threadpool() from the async wrapper.
     """
-    base = f"https://{shop_domain}/admin/api/{SHOPIFY_API_VERSION}"
-    url = f"{base}/orders/{order_id}/metafields.json"
+    path = f"/admin/api/{SHOPIFY_API_VERSION}/orders/{order_id}/metafields.json"
 
     body = {
         "metafield": {
@@ -46,23 +42,48 @@ async def write_order_risk_metafield(
             "value": json.dumps(risk_payload),
         }
     }
+    data = json.dumps(body)
 
     headers = {
         "X-Shopify-Access-Token": token,
         "Content-Type": "application/json",
         "Accept": "application/json",
+        "Content-Length": str(len(data)),
     }
 
-    async with https.AsyncClient(timeout=https.Timeout(10.0, read=20.0, write=10.0, connect=10.0)) as client:
-        resp = await client.post(url, json=body, headers=headers)
-        if resp.status_code not in (200, 201):
-            text = resp.text[:500]
-            logger.warning(
-                f"[{shop_domain}] metafield write failed for order {order_id} "
-                f"status={resp.status_code} body={text}"
-            )
-            raise HTTPException(status_code=502, detail="Metafield write failed")
-        return resp.json()
+    conn = http_client.HTTPSConnection(host=shop_domain, timeout=20)
+    try:
+        conn.request("POST", path, body=data, headers=headers)
+        resp = conn.getresponse()
+        status = resp.status
+        resp_text = resp.read().decode("utf-8", errors="replace")
+    finally:
+        conn.close()
+
+    if status not in (200, 201):
+        logger.warning(
+            f"[{shop_domain}] metafield write failed for order {order_id} "
+            f"status={status} body={resp_text[:500]}"
+        )
+        raise HTTPException(status_code=502, detail="Metafield write failed")
+
+    try:
+        return json.loads(resp_text) if resp_text else {}
+    except Exception:
+        # Shopify sometimes returns empty body on 201; tolerate it
+        return {}
+
+
+async def write_order_risk_metafield(
+    shop_domain: str,
+    order_id: int,
+    token: str,
+    risk_payload: dict,
+) -> dict:
+    # Run blocking HTTPS call in a thread to avoid blocking the event loop
+    return await run_in_threadpool(
+        _write_order_risk_metafield_sync, shop_domain, order_id, token, risk_payload
+    )
 
 
 @router.post("/orders-create")
@@ -82,7 +103,6 @@ async def orders_create(request: Request, db: Session = Depends(get_db)):
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid JSON")
 
-    # Use Shopify order ID for idempotency (falls back to other identifiers)
     event_id = str(
         payload.get("id")
         or payload.get("order_number")
@@ -92,61 +112,51 @@ async def orders_create(request: Request, db: Session = Depends(get_db)):
     if event_id and is_processed(db, event_id):
         return {"ok": True, "idempotent": True}
 
-    # --- Minimal fields used downstream ---
+    # --- Minimal fields ---
     order_id = payload.get("id")
     email = (payload.get("email") or "").strip().lower() if payload.get("email") else None
     source_ip = (payload.get("client_details") or {}).get("browser_ip") or payload.get("browser_ip")
     total_price = payload.get("total_price")
     currency = payload.get("currency")
 
-    # --- Query Risk Vault (anonymized identifiers) ---
+    # --- Query Risk Vault ---
     join_ids = {"email": email, "device_id": None, "ip": source_ip}
     q = QueryInput(shop_id=shop_domain, ids=join_ids)
     vault_result = await run_in_threadpool(query_core, q, db)
 
-    # --- Compute hybrid score (rules + vault + any external adapters if present) ---
-
-    
-    # compute_risk is assumed to return: {"score": int, "verdict": str, "reasons": [str], "evidence": {...}}
+    # --- Compute hybrid score ---
     risk = compute_risk(
         order_payload=payload,
         vault=vault_result.model_dump() if hasattr(vault_result, "model_dump") else vault_result,
         context={"total_price": total_price, "currency": currency, "source_ip": source_ip},
     )
 
-    # Normalize risk output
     score = int(risk.get("score", 0))
     verdict = str(risk.get("verdict", "green"))
     reasons = list(risk.get("reasons", []))
 
-    # --- Write metafield back to Shopify (best-effort; fail with 502 if Shopify rejects) ---
-    # You should pull a **shop-specific** access token from your store/session db.
-    # For simplicity this uses a global token from settings; swap to per-shop lookup in production.
+    # --- Write metafield (best-effort) ---
     admin_token = getattr(settings, "SHOPIFY_ADMIN_TOKEN", None)
     if not admin_token:
         logger.warning(f"[{shop_domain}] SHOPIFY_ADMIN_TOKEN not configured; skipping metafield write")
+    elif not order_id:
+        logger.warning(f"[{shop_domain}] Missing numeric order id; skipping metafield write")
     else:
         risk_payload = {
             "score": score,
             "verdict": verdict,
             "reasons": reasons,
-            # include a tiny evidence slice that’s safe to expose to merchants
             "evidence": (risk.get("evidence") or {}),
         }
-        if not order_id:
-            logger.warning(f"[{shop_domain}] Missing numeric order id; skipping metafield write")
-        else:
-            await write_order_risk_metafield(
-                shop_domain=shop_domain,
-                order_id=order_id,
-                token=admin_token,
-                risk_payload=risk_payload,
-            )
+        await write_order_risk_metafield(
+            shop_domain=shop_domain,
+            order_id=order_id,
+            token=admin_token,
+            risk_payload=risk_payload,
+        )
 
-    # --- Log + idempotency mark ---
-    logger.info(
-        f"[{shop_domain}] order {event_id or order_id} verdict={verdict} score={score} reasons={reasons}"
-    )
+    # --- Log + idempotency ---
+    logger.info(f"[{shop_domain}] order {event_id or order_id} verdict={verdict} score={score} reasons={reasons}")
     if event_id:
         mark_processed(db, topic, event_id)
 

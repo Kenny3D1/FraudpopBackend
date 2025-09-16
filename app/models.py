@@ -1,7 +1,9 @@
+
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import String, BigInteger, Integer, DateTime, JSON, LargeBinary, UniqueConstraint, func
 from .database import Base
 
+# Only keep models used in backend endpoints and scoring
 class WebhookEvent(Base):
     __tablename__ = "webhook_events"
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
@@ -20,7 +22,6 @@ class Observation(Base):
     last_seen: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     seen_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     outcomes: Mapped[dict] = mapped_column(JSON, nullable=False, default={})
-
     __table_args__ = (UniqueConstraint("id_type", "id_hash", name="uq_obs_idtype_hash"),)
 
 class DeviceCapture(Base):

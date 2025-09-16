@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import String, BigInteger, Integer, DateTime, JSON, LargeBinary, UniqueConstraint, func
+from sqlalchemy import String, BigInteger, Integer, DateTime, JSON, LargeBinary, UniqueConstraint, func, Float, Column
 from .database import Base
 
 class WebhookEvent(Base):

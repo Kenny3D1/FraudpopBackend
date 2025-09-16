@@ -113,3 +113,6 @@ def process_order_async(shop_id: str, order: dict):
     # except Exception as e:
     #     # Log error or handle as needed
     #     pass
+
+
+    return {"ok": True, "order_id": data["order_id"], "score": result["final_score"], "verdict": result["verdict"]}

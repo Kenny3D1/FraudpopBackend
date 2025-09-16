@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from ..database import get_db, Base, engine
-from ..schemas import ObserveInput, QueryInput, QueryResponse, VaultSignal
+from ..schemas import ObserveInput, QueryInput, QueryResponse, VaultSignal 
 from ..models import Observation
 from ..hashing import hash_identifier
 from ..config import settings

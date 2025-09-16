@@ -3,9 +3,9 @@ import json
 import requests
 from celery import Celery
 from sqlalchemy.orm import Session
-from .config import settings
-from .database import SessionLocal
-from .models import OrderRisk, EvidenceLog, WebhookEvent
+from ..config import settings
+from ..database import SessionLocal
+from ..models import OrderRisk, EvidenceLog, WebhookEvent
 
 from app.rules.defender3d import defender3d
 from app.vault.hasher import hash_identifier

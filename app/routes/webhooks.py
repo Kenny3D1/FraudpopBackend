@@ -3,11 +3,11 @@
 from fastapi import APIRouter, Request, Depends
 from sqlalchemy.orm import Session
 from ..database import get_db
-from ..security import verify_shopify_hmac
+from ..utils.shopify import verify_shopify_hmac
 from ..models import WebhookEvent
 from sqlalchemy import select
 from ..config import settings
-from app.tasks import process_order_async
+from app.workers.tasks import process_order_async
 
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])

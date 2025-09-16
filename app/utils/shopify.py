@@ -1,4 +1,3 @@
-# app/security.py
 import hmac, hashlib, base64, os
 
 def verify_shopify_hmac(raw_body: bytes, header_hmac: str) -> bool:

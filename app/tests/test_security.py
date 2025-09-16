@@ -1,5 +1,5 @@
 # tests/test_security.py
-from app.security import verify_shopify_hmac
+from app.utils.shopify import verify_shopify_hmac
 import pytest, hmac, hashlib
 
 def test_webhook_hmac_ok():

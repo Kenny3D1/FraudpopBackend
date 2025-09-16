@@ -13,8 +13,49 @@ from app.vault.repository import bump_identity
 
 celery = Celery("fraudpop", broker=settings.REDIS_URL, backend=settings.REDIS_URL)
 
-@celery.task(name="process_order_async")
+@celery.task(name="write_order_risk_metafield")
+def write_order_risk_metafield(shop_id: str, token: str, order_id: int, payload: dict):
+    url = f"https://{shop_id}/admin/api/{SHOPIFY_API_VERSION}/graphql.json"
+    owner_gid = f"gid://shopify/Order/{order_id}"
 
+    mutation = """
+    mutation SetRisk($metafields: [MetafieldsSetInput!]!) {
+      metafieldsSet(metafields: $metafields) {
+        metafields { id key namespace type value }
+        userErrors { field message code }
+      }
+    }"""
+
+    variables = {
+      "metafields": [{
+        "ownerId": owner_gid,
+        "namespace": "fraudpop",
+        "key": "risk",
+        "type": "json",
+        "value": json.dumps({
+          "score": payload["final_score"],
+          "rules_score": payload["rules_score"],
+          "verdict": payload["verdict"],
+          "reasons": payload["reasons"],
+        })
+      }]
+    }
+
+    r = requests.post(
+        url,
+        headers={"X-Shopify-Access-Token": token, "Content-Type": "application/json"},
+        json={"query": mutation, "variables": variables},
+        timeout=8
+    )
+    r.raise_for_status()
+    data = r.json()
+    errs = data.get("data", {}).get("metafieldsSet", {}).get("userErrors", [])
+    if errs:
+        raise RuntimeError(f"metafieldsSet errors: {errs}")
+
+
+
+@celery.task(name="process_order_async")
 def process_order_async(shop_id: str, order: dict):
     data = {
         "shop_id": shop_id,

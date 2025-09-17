@@ -7,6 +7,7 @@ from ..config import settings
 from ..database import SessionLocal
 from ..models import OrderRisk, EvidenceLog, WebhookEvent, RiskIdentity, Shop
 from app.rules.defender3d import defender3d
+from app.utils.logging import logger
 
 celery = Celery("fraudpop", broker=settings.REDIS_URL, backend=settings.REDIS_URL)
 
@@ -71,6 +72,7 @@ def process_order_async(shop_id: str, order: dict):
         "repeat_ip": 0,
         "repeat_device": 0,
     }
+    logger.info(f"Processing order {data['order_id']} for shop {shop_id}")
 
     db = SessionLocal()
     try:
@@ -95,7 +97,8 @@ def process_order_async(shop_id: str, order: dict):
                 data["repeat_device"] = row.seen_count
 
         result = defender3d(data)
-
+        logger.info(f"Order {data['order_id']} scored {result['final_score']} ({result['verdict']})")
+        
         rec = OrderRisk(
             shop_id=shop_id,
             order_id=data["order_id"],

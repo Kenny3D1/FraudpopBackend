@@ -98,7 +98,7 @@ def process_order_async(shop_id: str, order: dict):
 
         result = defender3d(data)
         logger.info(f"Order {data['order_id']} scored {result['final_score']} ({result['verdict']})")
-        
+
         rec = OrderRisk(
             shop_id=shop_id,
             order_id=data["order_id"],
@@ -133,6 +133,7 @@ def process_order_async(shop_id: str, order: dict):
     # --- GraphQL writeback on the ORDER (no Definition needed) ---
     try:
         metafields_set_via_remix(shop_id, int(order["id"]), result)
+        logger.info(f"Metafields written successfully for order {order.get('id')}")
     except Exception:
         # log and continue; don’t fail the whole task
         # logger.exception("Metafield write failed")

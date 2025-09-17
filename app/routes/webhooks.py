@@ -8,6 +8,7 @@ from ..models import WebhookEvent
 from sqlalchemy import select
 from ..config import settings
 from app.workers.tasks import process_order_async
+from app.utils.logging import logger
 
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
@@ -37,5 +38,7 @@ async def orders_create(request: Request, db: Session = Depends(get_db)):
 
     payload = await request.json()
     # fire-and-forget Celery job
+    logger.info(f"Enqueuing payload {payload} for shop {shop_id}")
     process_order_async.delay(shop_id, payload)
+    logger.info("process_order_async enqueued")
     return {"ok": True}

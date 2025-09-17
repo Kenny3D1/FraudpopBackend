@@ -14,7 +14,7 @@ router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
 ## Use shared get_db from database.py
 
-@router.post("/orders/create")
+@router.post("/orders-create")
 async def orders_create(request: Request, db: Session = Depends(get_db)):
     raw = await request.body()
     hmac_hdr = request.headers.get("X-Shopify-Hmac-Sha256", "")

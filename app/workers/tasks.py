@@ -12,9 +12,8 @@ celery = Celery("fraudpop", broker=settings.REDIS_URL, backend=settings.REDIS_UR
 
 SHOPIFY_API_VERSION = "2025-01"
 
-
-REMIX_URL = os.environ["REMIX_URL"]
-INTERNAL_SHARED_SECRET = os.environ["INTERNAL_SHARED_SECRET"]
+REMIX_URL = settings.REMIX_URL
+INTERNAL_SHARED_SECRET = settings.INTERNAL_SHARED_SECRET
 
 def metafields_set_via_remix(shop: str, order_id: int, result: dict) -> None:
     variables = [{

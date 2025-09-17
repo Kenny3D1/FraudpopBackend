@@ -3,6 +3,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     DATABASE_URL: str
     REDIS_URL: str
+    REMIX_URL: str
+    INTERNAL_SHARED_SECRET: str
+    
 
     JWT_SECRET: str
     ENCRYPTION_KEY: str

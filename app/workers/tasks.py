@@ -4,12 +4,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..config import settings
-from ..database import SessionLocal
+from ..database import get_db
 from ..models import OrderRisk, EvidenceLog, WebhookEvent, RiskIdentity, Shop
 from app.rules.defender3d import defender3d
 from app.utils.logging import logger
+from app.celery_worker import celery
 
-celery = Celery("fraudpop", broker=settings.REDIS_URL, backend=settings.REDIS_URL)
 
 SHOPIFY_API_VERSION = "2025-01"
 
@@ -54,6 +54,12 @@ def metafields_set_via_remix(shop: str, order_id: int, result: dict) -> None:
 def lookup_key(value: str, pepper: str = "fraudpop_pepper_v1") -> str:
     return hashlib.sha256((pepper + value).encode("utf-8")).hexdigest()
 
+
+@celery.task(name="ping")
+def ping():
+    logger.info("ping received")
+    return "pong"
+
 # ---------- Celery task ----------
 @celery.task(name="process_order_async", autoretry_for=(Exception,), retry_backoff=True, max_retries=5)
 def process_order_async(shop_id: str, order: dict):
@@ -74,7 +80,7 @@ def process_order_async(shop_id: str, order: dict):
     }
     logger.info(f"Processing order {data['order_id']} for shop {shop_id}")
 
-    db = SessionLocal()
+    db = get_db()
     try:
         # velocity counts using deterministic lookup keys
         if data["email"]:

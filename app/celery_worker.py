@@ -1,7 +1,7 @@
 # app/celery_worker.py
 import os
 from celery import Celery
-from config import settings
+from .config import settings
 
 # Avoid importing your whole config at import-time
 REDIS_URL = settings.REDIS_URL

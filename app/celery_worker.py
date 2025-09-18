@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.database import get_db
+from app.database import get_sessionmaker
 from app.models import OrderRisk, EvidenceLog, WebhookEvent, RiskIdentity, Shop
 from app.rules.defender3d import defender3d
 from app.utils.logging import logger
@@ -90,7 +90,8 @@ def process_order_async(shop_id: str, order: dict):
     }
     logger.info(f"Processing order {data['order_id']} for shop {shop_id}")
 
-    db = get_db()
+    SessionLocal = get_sessionmaker()
+    db = SessionLocal()
     try:
         # velocity counts using deterministic lookup keys
         if data["email"]:

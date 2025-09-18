@@ -2,17 +2,12 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import select, desc
 from ..models import OrderRisk, EvidenceLog
-from ..database import get_db, Base, engine, SessionLocal
+from ..database import get_db, Base
 from ..schemas import CaptureInput
 from ..models import DeviceCapture
 
 
 router = APIRouter(prefix="/v1", tags=["capture"])
-
-def get_db():
-    db = SessionLocal()
-    try: yield db
-    finally: db.close()
 
 @router.get("/orders")
 def list_orders(db: Session = Depends(get_db),

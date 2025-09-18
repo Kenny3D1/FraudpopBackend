@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_sessionmaker
-from app.models import OrderRisk, EvidenceLog, WebhookEvent, RiskIdentity, Shop
+from app.models import OrderRisk, EvidenceLog, WebhookEvent, RiskIdentity
 from app.rules.defender3d import defender3d
 from app.utils.logging import logger
 

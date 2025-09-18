@@ -6,7 +6,7 @@ from .config import settings
 # Avoid importing your whole config at import-time
 REDIS_URL = settings.REDIS_URL
 
-celery = Celery("fraudpop", broker=REDIS_URL, backend=REDIS_URL)
+celery = Celery("fraudpop", broker=REDIS_URL, backend=REDIS_URL, include=["app.workers.tasks"],)
 
 celery.conf.update(
     task_serializer="json",

@@ -78,20 +78,7 @@ def upgrade():
         sa.UniqueConstraint("kind", "hash", name="uq_kind_hash"),
     )
 
-    # --- shops ---
-    op.create_table(
-        "shops",
-        sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("shop_domain", sa.String, unique=True, index=True, nullable=False),
-        sa.Column("access_token", sa.String, nullable=False),
-        sa.Column("scopes", sa.String, nullable=False),
-        sa.Column("installed_at", sa.DateTime(timezone=True), server_default=sa.text("NOW()")),
-        sa.UniqueConstraint("shop_domain", name="uq_shop_domain"),
-    )
-
-
 def downgrade():
-    op.drop_table("shops")
     op.drop_table("risk_identity")
     op.drop_table("evidence_log")
     op.drop_table("order_risk")

@@ -16,4 +16,4 @@ celery.conf.update(
 )
 
 # If your tasks live under app/workers/ (with __init__.py present)
-celery.autodiscover_tasks(["app.workers"])
+celery.autodiscover_tasks(["app.workers"], "tasks")

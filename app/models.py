@@ -51,12 +51,3 @@ class RiskIdentity(Base):
     seen_count = Column(Integer, default=0)
     last_seen = Column(DateTime, server_default=func.now())
     __table_args__ = (UniqueConstraint('kind','hash', name='uq_kind_hash'),)
-
-class Shop(Base):
-    __tablename__ = "shops"
-    id = Column(Integer, primary_key=True)
-    shop_domain = Column(String, unique=True, index=True, nullable=False)  # mystore.myshopify.com
-    access_token = Column(String, nullable=False)  # offline Admin token
-    scopes = Column(String, nullable=False)        # saved scopes
-    installed_at = Column(DateTime, server_default=func.now())
-    __table_args__ = (UniqueConstraint("shop_domain", name="uq_shop_domain"),)

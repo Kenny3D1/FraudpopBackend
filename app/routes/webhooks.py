@@ -7,7 +7,7 @@ from ..utils.shopify import verify_shopify_hmac
 from ..models import WebhookEvent
 from sqlalchemy import select
 from ..config import settings
-from app.workers.tasks import process_order_async
+from app.celery_worker import process_order_async
 from app.utils.logging import logger
 
 

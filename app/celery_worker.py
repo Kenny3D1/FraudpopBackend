@@ -1,4 +1,4 @@
-import os, time, json, requests, hashlib
+import os, time, json, requests, hashlib, re
 from celery import Celery
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -8,6 +8,7 @@ from app.database import get_sessionmaker
 from app.models import OrderRisk, EvidenceLog, WebhookEvent, RiskIdentity
 from app.rules.defender3d import defender3d
 from app.utils.logging import logger
+from urllib.parse import urljoin
 
 REDIS_URL = settings.REDIS_URL
 

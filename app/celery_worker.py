@@ -56,8 +56,12 @@ def metafields_set_via_remix(shop: str, order_id: int, result: dict) -> None:
 
             time.sleep(1.5 * (attempt + 1))
             continue
-        r.raise_for_status()
-        data = r.json()
+        try:
+            r.raise_for_status()
+            data = r.json()
+        except requests.HTTPError:
+            logger.error("metafieldsSet HTTP %s: %s", r.status_code, r.text)
+            raise
         if not data.get("ok"):
             logger.error(f"metafieldsSet failed: {data}")
             raise RuntimeError(f"metafieldsSet failed: {data}")

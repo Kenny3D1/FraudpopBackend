@@ -27,6 +27,7 @@ REMIX_URL = settings.REMIX_URL
 INTERNAL_SHARED_SECRET = settings.INTERNAL_SHARED_SECRET
 
 def metafields_set_via_remix(shop: str, order_id: int, result: dict) -> None:
+    logger.info(f"Writing metafields for order {order_id} in shop {shop} for result {result}")
     variables = [{
         "ownerId": f"gid://shopify/Order/{order_id}",
         "namespace": "fraudpop",
@@ -157,7 +158,7 @@ def process_order_async(shop_id: str, order: dict):
         logger.info(f"Metafields written successfully for order {order.get('id')}")
     except Exception:
         # log and continue; don’t fail the whole task
-        # logger.exception("Metafield write failed")
+        logger.exception("Metafield write failed")
         pass
 
     return {"ok": True, "order_id": data["order_id"], "score": result["final_score"], "verdict": result["verdict"]}

@@ -27,7 +27,11 @@ REMIX_URL = settings.REMIX_URL
 INTERNAL_SHARED_SECRET = settings.INTERNAL_SHARED_SECRET
 
 def metafields_set_via_remix(shop: str, order_id: int, result: dict) -> None:
-    logger.info(f"Writing metafields for order {order_id} in shop {shop} for result {result}")
+    logger.info(
+        "Writing metafields for order %s in shop %s (verdict=%s, score=%s)",
+        order_id, shop, result.get("verdict"), result.get("final_score")
+    )
+
     variables = [{
         "ownerId": f"gid://shopify/Order/{order_id}",
         "namespace": "fraudpop",
@@ -41,34 +45,67 @@ def metafields_set_via_remix(shop: str, order_id: int, result: dict) -> None:
         }),
     }]
 
-    url = f"{REMIX_URL}/internal/metafields-set"
-    payload = {"shop": shop, "metafields": variables}
+    base = (REMIX_URL or "").strip().rstrip("/")
+    url = urljoin(base + "/", "internal/metafields-set")
+
+    payload = {"shop": (shop or "").strip().lower(), "metafields": variables}
     headers = {
         "Accept": "application/json",
         "Content-Type": "application/json",
         "x-internal-auth": INTERNAL_SHARED_SECRET,
+        # Optional but helpful for some CDNs/WAFs:
+        "User-Agent": "fraudpop-backend/1.0 (+requests)",
     }
 
-    # tiny rate-limit retry
-    for attempt in range(3):
-        r = requests.post(url, headers=headers, json=payload, timeout=10)
-        if r.status_code == 429 and attempt < 2:
-            logger.warning(f"Rate limited, retrying (attempt {attempt+1})…")
+    def _post_once():
+        # Do NOT follow redirects; expose them explicitly
+        r = requests.post(url, headers=headers, json=payload, timeout=12, allow_redirects=False)
 
-            time.sleep(1.5 * (attempt + 1))
-            continue
+        # Surface redirects clearly (common cause of HTML/empty)
+        if 300 <= r.status_code < 400:
+            loc = r.headers.get("Location", "")
+            raise RuntimeError(f"Unexpected redirect {r.status_code} to {loc} (POST {url})")
+
+        # HTTP error with body snippet
         try:
             r.raise_for_status()
-            data = r.json()
         except requests.HTTPError:
-            logger.error("metafieldsSet HTTP %s: %s", r.status_code, r.text)
+            snippet = (r.text or "")[:1000]
+            logger.error("metafieldsSet HTTP %s\nURL: %s\nCT: %s\nBody:\n%s",
+                         r.status_code, r.url, r.headers.get("Content-Type"), snippet)
             raise
-        if not data.get("ok"):
-            logger.error(f"metafieldsSet failed: {data}")
-            raise RuntimeError(f"metafieldsSet failed: {data}")
-        logger.info(f"metafieldsSet success: {data}")
-        return
 
+        # Must be JSON; otherwise log snippet and fail
+        ct = (r.headers.get("Content-Type") or "").lower()
+        if "application/json" not in ct:
+            snippet = (r.text or "")[:1000]
+            raise RuntimeError(f"Non-JSON response ({ct or 'no content-type'}) from {r.url}:\n{snippet}")
+
+        try:
+            return r.json()
+        except ValueError:
+            snippet = (r.text or "")[:1000]
+            raise RuntimeError(f"Invalid JSON from {r.url}:\n{snippet}")
+
+    # tiny rate-limit/5xx retry
+    for attempt in range(3):
+        try:
+            data = _post_once()
+            if not data.get("ok"):
+                logger.error("metafieldsSet failed JSON: %s", data)
+                raise RuntimeError(f"metafieldsSet failed: {data}")
+            logger.info("metafieldsSet success: %s", data)
+            return
+        except RuntimeError as e:
+            msg = str(e)
+            # retry only on rate limit or 5xx hints
+            if (re.search(r"\b429\b", msg) or re.search(r"\bHTTP 5\d{2}\b", msg)) and attempt < 2:
+                sleep = 1.5 * (attempt + 1)
+                logger.warning("Retrying metafieldsSet in %.1fs due to: %s", sleep, msg)
+                time.sleep(sleep)
+                continue
+            # no more retries; rethrow
+            raise
 
 # ---------- deterministic lookup key for velocity counting ----------
 def lookup_key(value: str, pepper: str = "fraudpop_pepper_v1") -> str:

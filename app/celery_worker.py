@@ -50,6 +50,7 @@ def extract_note_attr(order: dict, key: str):
     return None
 
 def metafields_set_via_remix(shop: str, order_id_or_gid, result: dict) -> None:
+    logger.info("metafields_set_via_remix called for shop %s order %s result %s", shop, order_id_or_gid, result)
     shop = normalize_shop_domain(shop)
     owner_id = to_order_gid(order_id_or_gid)
 
@@ -135,7 +136,6 @@ def process_order_async(shop_id: str, order: dict):
     shop_domain = normalize_shop_domain(shop_id)
     order_id_str = str(order.get("id"))
     order_gid = order.get("admin_graphql_api_id") or order_id_str
-
     data = {
         "shop_id": shop_domain,
         "order_id": order_id_str,

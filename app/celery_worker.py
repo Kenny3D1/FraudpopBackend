@@ -51,12 +51,16 @@ def metafields_set_via_remix(shop: str, order_id: int, result: dict) -> None:
     for attempt in range(3):
         r = requests.post(url, headers=headers, json=payload, timeout=10)
         if r.status_code == 429 and attempt < 2:
+            logger.warning(f"Rate limited, retrying (attempt {attempt+1})…")
+
             time.sleep(1.5 * (attempt + 1))
             continue
         r.raise_for_status()
         data = r.json()
         if not data.get("ok"):
+            logger.error(f"metafieldsSet failed: {data}")
             raise RuntimeError(f"metafieldsSet failed: {data}")
+        logger.info(f"metafieldsSet success: {data}")
         return
 
 

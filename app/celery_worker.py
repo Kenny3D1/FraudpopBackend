@@ -44,6 +44,7 @@ def metafields_set_via_remix(shop: str, order_id: int, result: dict) -> None:
     url = f"{REMIX_URL}/internal/metafields-set"
     payload = {"shop": shop, "metafields": variables}
     headers = {
+        "Accept": "application/json",
         "Content-Type": "application/json",
         "x-internal-auth": INTERNAL_SHARED_SECRET,
     }
